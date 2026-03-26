@@ -1,0 +1,110 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: email-mcp-app
+  namespace: email-mcp
+  labels:
+    app: email-mcp-app
+spec:
+  replicas: 2                      # Start with 2; HPA will scale up/down
+  selector:
+    matchLabels:
+      app: email-mcp-app
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0            # Zero-downtime deploys
+  template:
+    metadata:
+      labels:
+        app: email-mcp-app
+      annotations:
+        # Prometheus scrape annotations
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8080"
+        prometheus.io/path: "/metrics"
+    spec:
+      # ── Security ────────────────────────────────────────────────────────────
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 1000
+
+      # ── Init: copy credentials.json from Secret into the shared volume ─────
+      initContainers:
+        - name: init-credentials
+          image: busybox
+          command:
+            - sh
+            - -c
+            - cp /secrets/credentials.json /app-data/credentials.json && chmod 600 /app-data/credentials.json
+          volumeMounts:
+            - name: credentials-secret
+              mountPath: /secrets
+            - name: gmail-token
+              mountPath: /app-data
+
+      containers:
+        - name: email-mcp-app
+          image: 217140917846.dkr.ecr.eu-west-1.amazonaws.com/email-mcp-app:latest
+          imagePullPolicy: Always
+
+          # ── Environment ───────────────────────────────────────────────────
+          envFrom:
+            - configMapRef:
+                name: email-mcp-config
+          env:
+            - name: ANTHROPIC_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: email-mcp-secrets
+                  key: ANTHROPIC_API_KEY
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: email-mcp-secrets
+                  key: DATABASE_URL
+            - name: GMAIL_CREDENTIALS_PATH
+              value: "/app/credentials.json"
+
+          # ── Volumes ───────────────────────────────────────────────────────
+          volumeMounts:
+            - name: gmail-token
+              mountPath: /app/token.json
+              subPath: token.json
+            - name: gmail-token
+              mountPath: /app/credentials.json
+              subPath: credentials.json
+
+          # ── Resources (required for HPA) ──────────────────────────────────
+          resources:
+            requests:
+              cpu: "250m"
+              memory: "256Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+
+          # ── Health checks ─────────────────────────────────────────────────
+          livenessProbe:
+            exec:
+              command: ["python", "-c", "import anthropic; print('ok')"]
+            initialDelaySeconds: 30
+            periodSeconds: 60
+            failureThreshold: 3
+
+          readinessProbe:
+            exec:
+              command: ["python", "-c", "import mcp; print('ok')"]
+            initialDelaySeconds: 15
+            periodSeconds: 20
+
+      # ── Volumes ───────────────────────────────────────────────────────────
+      volumes:
+        - name: gmail-token
+          persistentVolumeClaim:
+            claimName: gmail-token-pvc
+        - name: credentials-secret
+          secret:
+            secretName: gmail-credentials-secret
