@@ -1,6 +1,13 @@
 -- Email MCP App — PostgreSQL Schema
 -- Run once: psql $DATABASE_URL -f schema.sql
 
+CREATE TABLE IF NOT EXISTS users (
+    id            SERIAL PRIMARY KEY,
+    email         VARCHAR(255) UNIQUE NOT NULL,
+    password_hash VARCHAR(255) NOT NULL,
+    created_at    TIMESTAMP NOT NULL DEFAULT NOW()
+);
+
 CREATE TABLE IF NOT EXISTS email_logs (
     id               SERIAL PRIMARY KEY,
     direction        VARCHAR(10)  NOT NULL CHECK (direction IN ('sent', 'received')),
