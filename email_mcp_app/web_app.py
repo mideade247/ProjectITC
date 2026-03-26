@@ -408,8 +408,8 @@ def index():
 </div>
 
 <script>
-  var token = localStorage.getItem('mcp_token') || '';
-  var userEmail = localStorage.getItem('mcp_email') || '';
+  var token = ''; var userEmail = '';
+  try { token = localStorage.getItem('mcp_token') || ''; userEmail = localStorage.getItem('mcp_email') || ''; } catch(e) {}
   var sessionId = '';
   var isRegister = false;
 
@@ -437,8 +437,7 @@ def index():
   }
 
   function logout() {
-    localStorage.removeItem('mcp_token');
-    localStorage.removeItem('mcp_email');
+    try { localStorage.removeItem('mcp_token'); localStorage.removeItem('mcp_email'); } catch(e) {}
     token = ''; userEmail = ''; sessionId = '';
     setTab(false);
     document.getElementById('authEmail').value = '';
@@ -469,8 +468,7 @@ def index():
       if (!r.ok) { showErr(r.data.detail || 'Something went wrong.'); return; }
       token = r.data.token;
       userEmail = r.data.email;
-      localStorage.setItem('mcp_token', token);
-      localStorage.setItem('mcp_email', userEmail);
+      try { localStorage.setItem('mcp_token', token); localStorage.setItem('mcp_email', userEmail); } catch(e) {}
       showChat();
     })
     .catch(function() { showErr('Could not connect to server. Please try again.'); })
@@ -531,18 +529,16 @@ def index():
     .finally(function() { btn.disabled = false; input.focus(); });
   }
 
-  // Wire up all buttons with addEventListener (most reliable)
-  window.addEventListener('load', function() {
-    document.getElementById('tabSignIn').addEventListener('click', function() { setTab(false); });
-    document.getElementById('tabRegister').addEventListener('click', function() { setTab(true); });
-    document.getElementById('authBtn').addEventListener('click', submitAuth);
-    document.getElementById('sendBtn').addEventListener('click', sendMessage);
-    document.getElementById('authPassword').addEventListener('keydown', function(e) { if (e.key === 'Enter') submitAuth(); });
-    document.getElementById('msgInput').addEventListener('keydown', function(e) { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); } });
-    document.querySelectorAll('.chip').forEach(function(c) { c.addEventListener('click', function() { fill(c.dataset.msg); }); });
-    document.querySelectorAll('.btnLogout').forEach(function(b) { b.addEventListener('click', logout); });
-    if (token && userEmail) showChat();
-  });
+  // Script is at bottom of <body> — DOM is already ready, attach directly
+  document.getElementById('tabSignIn').addEventListener('click', function() { setTab(false); });
+  document.getElementById('tabRegister').addEventListener('click', function() { setTab(true); });
+  document.getElementById('authBtn').addEventListener('click', submitAuth);
+  document.getElementById('sendBtn').addEventListener('click', sendMessage);
+  document.getElementById('authPassword').addEventListener('keydown', function(e) { if (e.key === 'Enter') submitAuth(); });
+  document.getElementById('msgInput').addEventListener('keydown', function(e) { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); } });
+  document.querySelectorAll('.chip').forEach(function(c) { c.addEventListener('click', function() { fill(c.dataset.msg); }); });
+  document.querySelector('.btnLogout').addEventListener('click', logout);
+  if (token && userEmail) showChat();
 </script>
 </body>
 </html>""")
