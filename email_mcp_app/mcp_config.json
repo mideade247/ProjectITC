@@ -1,0 +1,20 @@
+{
+  "_comment": "Add these entries to your Claude Desktop config at %APPDATA%\\Claude\\claude_desktop_config.json",
+  "mcpServers": {
+    "gmail": {
+      "command": "python",
+      "args": ["C:\\Users\\olumi\\email_mcp_app\\servers\\gmail_server.py"],
+      "env": {
+        "GMAIL_CREDENTIALS_PATH": "C:\\Users\\olumi\\email_mcp_app\\credentials.json",
+        "ANTHROPIC_API_KEY": "<your-key-here>"
+      }
+    },
+    "postgres": {
+      "command": "python",
+      "args": ["C:\\Users\\olumi\\email_mcp_app\\servers\\postgres_server.py"],
+      "env": {
+        "DATABASE_URL": "postgresql://user:password@host:5432/dbname"
+      }
+    }
+  }
+}

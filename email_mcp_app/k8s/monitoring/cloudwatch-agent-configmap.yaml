@@ -1,0 +1,25 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: cwagentconfig
+  namespace: amazon-cloudwatch
+data:
+  cwagentconfig.json: |
+    {
+      "logs": {
+        "metrics_collected": {
+          "kubernetes": {
+            "cluster_name": "email-mcp-cluster",
+            "metrics_collection_interval": 60
+          }
+        },
+        "force_flush_interval": 5
+      },
+      "metrics": {
+        "metrics_collected": {
+          "statsd": {
+            "service_address": ":8125"
+          }
+        }
+      }
+    }

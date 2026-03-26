@@ -1,0 +1,13 @@
+# Persistent storage for token.json so Gmail OAuth token survives pod restarts
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: gmail-token-pvc
+  namespace: email-mcp
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: gp2          # AWS EBS gp2 — available on all EKS clusters
+  resources:
+    requests:
+      storage: 1Gi

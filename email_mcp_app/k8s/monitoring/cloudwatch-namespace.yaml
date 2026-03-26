@@ -1,0 +1,8 @@
+# CloudWatch Container Insights — AWS-native monitoring
+# Deploys the CloudWatch agent + Fluent Bit as DaemonSets
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: amazon-cloudwatch
+  labels:
+    name: amazon-cloudwatch

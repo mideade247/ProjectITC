@@ -1,0 +1,14 @@
+# Secrets — never commit these
+.env
+credentials.json
+token.json
+k8s/secret.yaml
+
+# Python
+__pycache__/
+*.pyc
+venv/
+.venv/
+
+# Docker
+.dockerignore
