@@ -307,21 +307,21 @@ def index():
     body{font-family:'Segoe UI',sans-serif;background:#0f172a;color:#e2e8f0;height:100vh;display:flex;flex-direction:column}
 
     /* ── Auth screen ── */
-    #authScreen{flex:1;display:flex;align-items:center;justify-content:center}
-    .authBox{background:#1e293b;border:1px solid #334155;border-radius:16px;padding:2.5rem;width:100%;max-width:420px}
-    .authBox h1{font-size:1.4rem;margin-bottom:0.25rem;color:#f8fafc}
-    .authBox p{color:#94a3b8;font-size:0.875rem;margin-bottom:1.75rem}
+    #authScreen{flex:1;display:flex;align-items:center;justify-content:center;padding:1rem}
+    .authBox{background:#1e293b;border:1px solid #334155;border-radius:16px;padding:2rem;width:100%;max-width:420px}
+    .authBox h1{font-size:1.3rem;font-weight:700;color:#f8fafc;text-align:center;margin-bottom:1.5rem}
+    .tabs{display:flex;background:#0f172a;border-radius:8px;padding:4px;margin-bottom:1.5rem;gap:4px}
+    .tab{flex:1;padding:0.55rem;border:none;border-radius:6px;font-size:0.9rem;font-weight:600;cursor:pointer;transition:background 0.15s,color 0.15s;background:transparent;color:#64748b}
+    .tab.active{background:#3b82f6;color:#fff}
+    .tab:hover:not(.active){color:#e2e8f0}
     .field{display:flex;flex-direction:column;gap:0.4rem;margin-bottom:1rem}
     .field label{font-size:0.8rem;color:#94a3b8;font-weight:500}
-    .field input{background:#0f172a;border:1px solid #334155;color:#e2e8f0;padding:0.7rem 0.9rem;border-radius:8px;font-size:0.95rem;outline:none}
+    .field input{background:#0f172a;border:1px solid #334155;color:#e2e8f0;padding:0.75rem 0.9rem;border-radius:8px;font-size:0.95rem;outline:none;width:100%}
     .field input:focus{border-color:#3b82f6}
-    .btnPrimary{width:100%;background:#3b82f6;color:#fff;border:none;padding:0.75rem;border-radius:8px;font-size:1rem;font-weight:600;cursor:pointer;margin-top:0.5rem}
+    .btnPrimary{width:100%;background:#3b82f6;color:#fff;border:none;padding:0.8rem;border-radius:8px;font-size:1rem;font-weight:600;cursor:pointer;margin-top:0.25rem}
     .btnPrimary:hover{background:#2563eb}
     .btnPrimary:disabled{background:#475569;cursor:not-allowed}
-    .switchLink{text-align:center;margin-top:1.25rem;font-size:0.875rem;color:#94a3b8}
-    .switchLink a{color:#3b82f6;cursor:pointer;text-decoration:none}
-    .switchLink a:hover{text-decoration:underline}
-    .errMsg{color:#f87171;font-size:0.82rem;margin-top:0.5rem;min-height:1.2rem}
+    .errMsg{display:none;background:#450a0a;border:1px solid #f87171;color:#fca5a5;font-size:0.85rem;padding:0.6rem 0.8rem;border-radius:6px;margin-top:0.75rem}
 
     /* ── Chat screen ── */
     #chatScreen{flex:1;display:none;flex-direction:column}
@@ -356,23 +356,23 @@ def index():
 <div id="authScreen">
   <div class="authBox">
     <h1>📧 Email MCP Assistant</h1>
-    <p id="authSubtitle">Sign in to access your personal email assistant</p>
+
+    <div class="tabs">
+      <button type="button" class="tab active" id="tabSignIn">Sign In</button>
+      <button type="button" class="tab" id="tabRegister">Create Account</button>
+    </div>
 
     <div class="field">
       <label>Email address</label>
       <input id="authEmail" type="email" placeholder="you@example.com" autocomplete="email"/>
     </div>
     <div class="field">
-      <label>Password</label>
+      <label id="pwLabel">Password</label>
       <input id="authPassword" type="password" placeholder="••••••••" autocomplete="current-password"/>
     </div>
-    <div class="errMsg" id="authErr"></div>
-    <button class="btnPrimary" id="authBtn" onclick="submitAuth()">Sign In</button>
 
-    <div class="switchLink">
-      <span id="switchText">Don't have an account?</span>
-      <a id="switchLink" onclick="toggleMode()">Create one</a>
-    </div>
+    <button type="button" class="btnPrimary" id="authBtn">Sign In</button>
+    <div class="errMsg" id="authErr"></div>
   </div>
 </div>
 
@@ -385,7 +385,7 @@ def index():
     </div>
     <div class="userInfo">
       Signed in as <span id="userEmailDisplay"></span>
-      <button class="btnLogout" onclick="logout()">Sign out</button>
+      <button class="btnLogout">Sign out</button>
     </div>
   </header>
 
@@ -395,79 +395,41 @@ def index():
 
   <footer>
     <div class="chips">
-      <span class="chip" onclick="fill('What is my email address?')">What is my email?</span>
-      <span class="chip" onclick="fill('List my last 5 emails')">List last 5 emails</span>
-      <span class="chip" onclick="fill('Show email stats')">Email stats</span>
-      <span class="chip" onclick="fill('Show sent emails in the log')">Sent email logs</span>
+      <span class="chip" data-msg="What is my email address?">What is my email?</span>
+      <span class="chip" data-msg="List my last 5 emails">List last 5 emails</span>
+      <span class="chip" data-msg="Show email stats">Email stats</span>
+      <span class="chip" data-msg="Show sent emails in the log">Sent email logs</span>
     </div>
     <div class="inputRow">
       <input id="msgInput" placeholder="Ask me anything about your emails…" autocomplete="off"/>
-      <button id="sendBtn" type="button" onclick="sendMessage()">Send</button>
+      <button id="sendBtn" type="button">Send</button>
     </div>
   </footer>
 </div>
 
 <script>
-  // ── State ──────────────────────────────────────────────────────────────────
-  let token = localStorage.getItem('mcp_token') || '';
-  let userEmail = localStorage.getItem('mcp_email') || '';
-  let sessionId = '';
-  let isRegister = false;
+  var token = localStorage.getItem('mcp_token') || '';
+  var userEmail = localStorage.getItem('mcp_email') || '';
+  var sessionId = '';
+  var isRegister = false;
 
-  // ── Init ───────────────────────────────────────────────────────────────────
-  if (token && userEmail) showChat();
-
-  // ── Auth mode toggle ───────────────────────────────────────────────────────
-  function toggleMode() {
-    isRegister = !isRegister;
-    document.getElementById('authSubtitle').textContent = isRegister
-      ? 'Create an account to get started'
-      : 'Sign in to access your personal email assistant';
-    document.getElementById('authBtn').textContent = isRegister ? 'Create Account' : 'Sign In';
-    document.getElementById('switchText').textContent = isRegister ? 'Already have an account?' : "Don't have an account?";
-    document.getElementById('switchLink').textContent = isRegister ? 'Sign in' : 'Create one';
-    document.getElementById('authPassword').autocomplete = isRegister ? 'new-password' : 'current-password';
-    document.getElementById('authErr').textContent = '';
+  function showErr(msg) {
+    var el = document.getElementById('authErr');
+    el.textContent = msg;
+    el.style.display = msg ? 'block' : 'none';
   }
 
-  // ── Submit login / register ────────────────────────────────────────────────
-  async function submitAuth() {
-    const email = document.getElementById('authEmail').value.trim();
-    const password = document.getElementById('authPassword').value;
-    const errEl = document.getElementById('authErr');
-    const btn = document.getElementById('authBtn');
-    errEl.textContent = '';
-
-    if (!email || !password) { errEl.textContent = 'Please fill in all fields.'; return; }
-    if (isRegister && password.length < 8) { errEl.textContent = 'Password must be at least 8 characters.'; return; }
-
-    btn.disabled = true;
-    btn.textContent = isRegister ? 'Creating account…' : 'Signing in…';
-
-    try {
-      const endpoint = isRegister ? '/auth/register' : '/auth/login';
-      const res = await fetch(endpoint, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password })
-      });
-      const data = await res.json();
-      if (!res.ok) { errEl.textContent = data.detail || 'Something went wrong.'; return; }
-
-      token = data.token;
-      userEmail = data.email;
-      localStorage.setItem('mcp_token', token);
-      localStorage.setItem('mcp_email', userEmail);
-      showChat();
-    } catch (e) {
-      errEl.textContent = 'Could not connect to server. Please try again.';
-    } finally {
-      btn.disabled = false;
-      btn.textContent = isRegister ? 'Create Account' : 'Sign In';
-    }
+  function setTab(reg) {
+    isRegister = reg;
+    document.getElementById('tabSignIn').className = 'tab' + (reg ? '' : ' active');
+    document.getElementById('tabRegister').className = 'tab' + (reg ? ' active' : '');
+    document.getElementById('authBtn').textContent = reg ? 'Create Account' : 'Sign In';
+    document.getElementById('pwLabel').textContent = reg ? 'Password (min 8 chars)' : 'Password';
+    document.getElementById('authPassword').autocomplete = reg ? 'new-password' : 'current-password';
+    document.getElementById('authPassword').value = '';
+    showErr('');
   }
 
-  // ── Show/hide screens ──────────────────────────────────────────────────────
   function showChat() {
     document.getElementById('authScreen').style.display = 'none';
     document.getElementById('chatScreen').style.display = 'flex';
@@ -478,26 +440,54 @@ def index():
     localStorage.removeItem('mcp_token');
     localStorage.removeItem('mcp_email');
     token = ''; userEmail = ''; sessionId = '';
+    setTab(false);
+    document.getElementById('authEmail').value = '';
     document.getElementById('authScreen').style.display = 'flex';
     document.getElementById('chatScreen').style.display = 'none';
-    document.getElementById('authEmail').value = '';
-    document.getElementById('authPassword').value = '';
-    document.getElementById('authErr').textContent = '';
-    // Clear chat history visually
-    const chat = document.getElementById('chat');
-    chat.innerHTML = '<div class="msg assistant">Hi! I\'m your personal email assistant. I can send emails, read your inbox, and log everything to your database. What would you like to do?</div>';
-    sessionId = '';
+    document.getElementById('chat').innerHTML = '<div class="msg assistant">Hi! I\'m your personal email assistant. I can send emails, read your inbox, and log everything to your database. What would you like to do?</div>';
   }
 
-  // ── Chat ───────────────────────────────────────────────────────────────────
+  function submitAuth() {
+    var email = document.getElementById('authEmail').value.trim();
+    var password = document.getElementById('authPassword').value;
+    var btn = document.getElementById('authBtn');
+
+    showErr('');
+    if (!email || !password) { showErr('Please fill in all fields.'); return; }
+    if (isRegister && password.length < 8) { showErr('Password must be at least 8 characters.'); return; }
+
+    btn.disabled = true;
+    btn.textContent = isRegister ? 'Creating account…' : 'Signing in…';
+
+    fetch(isRegister ? '/auth/register' : '/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: email, password: password })
+    })
+    .then(function(res) { return res.json().then(function(d) { return { ok: res.ok, data: d }; }); })
+    .then(function(r) {
+      if (!r.ok) { showErr(r.data.detail || 'Something went wrong.'); return; }
+      token = r.data.token;
+      userEmail = r.data.email;
+      localStorage.setItem('mcp_token', token);
+      localStorage.setItem('mcp_email', userEmail);
+      showChat();
+    })
+    .catch(function() { showErr('Could not connect to server. Please try again.'); })
+    .finally(function() {
+      btn.disabled = false;
+      btn.textContent = isRegister ? 'Create Account' : 'Sign In';
+    });
+  }
+
   function fill(text) {
     document.getElementById('msgInput').value = text;
     document.getElementById('msgInput').focus();
   }
 
   function addMsg(text, role) {
-    const chat = document.getElementById('chat');
-    const div = document.createElement('div');
+    var chat = document.getElementById('chat');
+    var div = document.createElement('div');
     div.className = 'msg ' + role;
     div.textContent = text;
     chat.appendChild(div);
@@ -505,64 +495,53 @@ def index():
     return div;
   }
 
-  async function sendMessage() {
-    const input = document.getElementById('msgInput');
-    const btn = document.getElementById('sendBtn');
-    const msg = input.value.trim();
+  function sendMessage() {
+    var input = document.getElementById('msgInput');
+    var btn = document.getElementById('sendBtn');
+    var msg = input.value.trim();
     if (!msg || btn.disabled) return;
 
     addMsg(msg, 'user');
     input.value = '';
     btn.disabled = true;
 
-    const chat = document.getElementById('chat');
-    const typing = document.createElement('div');
+    var chat = document.getElementById('chat');
+    var typing = document.createElement('div');
     typing.className = 'typing';
     typing.textContent = 'Assistant is thinking…';
     chat.appendChild(typing);
     chat.scrollTop = chat.scrollHeight;
 
-    try {
-      const res = await fetch('/chat', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer ' + token
-        },
-        body: JSON.stringify({ message: msg, session_id: sessionId })
-      });
-
-      if (res.status === 401) {
-        typing.remove();
-        logout();
-        addMsg('Your session has expired. Please sign in again.', 'assistant');
-        return;
-      }
-
-      const data = await res.json();
+    fetch('/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+      body: JSON.stringify({ message: msg, session_id: sessionId })
+    })
+    .then(function(res) {
+      if (res.status === 401) { typing.remove(); logout(); addMsg('Session expired. Please sign in again.', 'assistant'); return null; }
+      return res.json().then(function(d) { return { ok: res.ok, data: d }; });
+    })
+    .then(function(r) {
+      if (!r) return;
       typing.remove();
-      if (res.ok) {
-        sessionId = data.session_id;
-        addMsg(data.reply, 'assistant');
-      } else {
-        addMsg('Error: ' + (data.detail || 'Something went wrong.'), 'assistant');
-      }
-    } catch (e) {
-      typing.remove();
-      addMsg('Error: Could not reach the server. Please try again.', 'assistant');
-    }
-
-    btn.disabled = false;
-    input.focus();
+      if (r.ok) { sessionId = r.data.session_id; addMsg(r.data.reply, 'assistant'); }
+      else { addMsg('Error: ' + (r.data.detail || 'Something went wrong.'), 'assistant'); }
+    })
+    .catch(function() { typing.remove(); addMsg('Error: Could not reach the server.', 'assistant'); })
+    .finally(function() { btn.disabled = false; input.focus(); });
   }
 
-  document.addEventListener('DOMContentLoaded', function () {
-    document.getElementById('msgInput').addEventListener('keydown', function (e) {
-      if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
-    });
-    document.getElementById('authPassword').addEventListener('keydown', function (e) {
-      if (e.key === 'Enter') submitAuth();
-    });
+  // Wire up all buttons with addEventListener (most reliable)
+  window.addEventListener('load', function() {
+    document.getElementById('tabSignIn').addEventListener('click', function() { setTab(false); });
+    document.getElementById('tabRegister').addEventListener('click', function() { setTab(true); });
+    document.getElementById('authBtn').addEventListener('click', submitAuth);
+    document.getElementById('sendBtn').addEventListener('click', sendMessage);
+    document.getElementById('authPassword').addEventListener('keydown', function(e) { if (e.key === 'Enter') submitAuth(); });
+    document.getElementById('msgInput').addEventListener('keydown', function(e) { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); } });
+    document.querySelectorAll('.chip').forEach(function(c) { c.addEventListener('click', function() { fill(c.dataset.msg); }); });
+    document.querySelectorAll('.btnLogout').forEach(function(b) { b.addEventListener('click', logout); });
+    if (token && userEmail) showChat();
   });
 </script>
 </body>
