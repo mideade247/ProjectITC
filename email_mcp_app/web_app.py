@@ -12,6 +12,7 @@ from contextlib import AsyncExitStack, asynccontextmanager
 from datetime import datetime, timedelta
 from pathlib import Path
 
+import bcrypt
 import psycopg2
 import psycopg2.extras
 from anthropic import Anthropic
@@ -21,7 +22,6 @@ from fastapi.responses import HTMLResponse
 from jose import JWTError, jwt
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
-from passlib.context import CryptContext
 from pydantic import BaseModel
 
 load_dotenv(Path(__file__).parent / ".env")
@@ -34,7 +34,12 @@ POSTGRES_SERVER = ROOT / "servers" / "postgres_server.py"
 SECRET_KEY = os.getenv("SECRET_KEY", secrets.token_hex(32))
 ALGORITHM = "HS256"
 TOKEN_EXPIRE_HOURS = 24
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
+def _hash_pw(password: str) -> str:
+    return bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
+
+def _verify_pw(password: str, hashed: str) -> bool:
+    return bcrypt.checkpw(password.encode(), hashed.encode())
 
 # ── DB helpers ────────────────────────────────────────────────────────────────
 
@@ -74,7 +79,7 @@ def db_create_user(email: str, password: str):
     try:
         cur.execute(
             "INSERT INTO users (email, password_hash) VALUES (%s, %s)",
-            (email, pwd_context.hash(password)),
+            (email, _hash_pw(password)),
         )
         conn.commit()
     except psycopg2.errors.UniqueViolation:
@@ -256,7 +261,7 @@ def register(req: AuthRequest):
 @app.post("/auth/login")
 def login(req: AuthRequest):
     user = db_get_user(req.email.lower().strip())
-    if not user or not pwd_context.verify(req.password, user["password_hash"]):
+    if not user or not _verify_pw(req.password, user["password_hash"]):
         raise HTTPException(status_code=401, detail="Invalid email or password")
     token = create_token(req.email.lower().strip())
     return {"token": token, "email": req.email.lower().strip()}
