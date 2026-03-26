@@ -88,17 +88,19 @@ spec:
 
           # ── Health checks ─────────────────────────────────────────────────
           livenessProbe:
-            exec:
-              command: ["python", "-c", "import anthropic; print('ok')"]
+            httpGet:
+              path: /health
+              port: 8080
             initialDelaySeconds: 30
-            periodSeconds: 60
+            periodSeconds: 30
             failureThreshold: 3
 
           readinessProbe:
-            exec:
-              command: ["python", "-c", "import mcp; print('ok')"]
-            initialDelaySeconds: 15
-            periodSeconds: 20
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 20
+            periodSeconds: 10
 
       # ── Volumes ───────────────────────────────────────────────────────────
       volumes:

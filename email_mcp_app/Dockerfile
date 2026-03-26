@@ -23,6 +23,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # ── Application code ──────────────────────────────────────────────────────────
 COPY app.py .
+COPY web_app.py .
 COPY schema.sql .
 COPY setup_db.py .
 COPY servers/ ./servers/
@@ -42,4 +43,6 @@ USER appuser
 #
 # The app is an interactive CLI — always run with -it.
 
-CMD ["python", "app.py"]
+EXPOSE 8080
+
+CMD ["python", "web_app.py"]
