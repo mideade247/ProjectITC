@@ -31,17 +31,21 @@ spec:
         runAsUser: 1000
         fsGroup: 1000
 
-      # ── Init: copy credentials.json from Secret into the shared volume ─────
+      # ── Init: copy credentials.json + token.json from Secrets into PVC ──────
       initContainers:
         - name: init-credentials
           image: busybox
           command:
             - sh
             - -c
-            - cp /secrets/credentials.json /app-data/credentials.json && chmod 600 /app-data/credentials.json
+            - |
+              cp /creds/credentials.json /app-data/credentials.json && chmod 600 /app-data/credentials.json
+              cp /token/token.json /app-data/token.json && chmod 600 /app-data/token.json
           volumeMounts:
             - name: credentials-secret
-              mountPath: /secrets
+              mountPath: /creds
+            - name: token-secret
+              mountPath: /token
             - name: gmail-token
               mountPath: /app-data
 
@@ -67,6 +71,11 @@ spec:
                   key: DATABASE_URL
             - name: GMAIL_CREDENTIALS_PATH
               value: "/app/credentials.json"
+            - name: SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: email-mcp-secrets
+                  key: SECRET_KEY
 
           # ── Volumes ───────────────────────────────────────────────────────
           volumeMounts:
@@ -110,3 +119,6 @@ spec:
         - name: credentials-secret
           secret:
             secretName: gmail-credentials-secret
+        - name: token-secret
+          secret:
+            secretName: gmail-token-secret
