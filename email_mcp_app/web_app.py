@@ -443,7 +443,7 @@ def index():
     document.getElementById('authEmail').value = '';
     document.getElementById('authScreen').style.display = 'flex';
     document.getElementById('chatScreen').style.display = 'none';
-    document.getElementById('chat').innerHTML = '<div class="msg assistant">Hi! I\'m your personal email assistant. I can send emails, read your inbox, and log everything to your database. What would you like to do?</div>';
+    document.getElementById('chat').innerHTML = "<div class='msg assistant'>Hi! I'm your personal email assistant. I can send emails, read your inbox, and log everything to your database. What would you like to do?</div>";
   }
 
   function submitAuth() {
