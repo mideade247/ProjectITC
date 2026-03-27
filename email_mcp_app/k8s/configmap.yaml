@@ -6,3 +6,5 @@ metadata:
 data:
   PYTHONUNBUFFERED: "1"
   GMAIL_CREDENTIALS_PATH: "/app/credentials.json"
+  GMAIL_REDIRECT_URI: "http://a498699022add45d19a4d4345b452839-377251697.eu-west-1.elb.amazonaws.com/auth/google/callback"
+  APP_BASE_URL: "http://a498699022add45d19a4d4345b452839-377251697.eu-west-1.elb.amazonaws.com"
