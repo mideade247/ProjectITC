@@ -22,7 +22,7 @@ SCOPES = [
     "https://www.googleapis.com/auth/gmail.modify",
 ]
 
-TOKEN_PATH = Path(__file__).parent.parent / "token.json"
+TOKEN_PATH = Path(os.getenv("GMAIL_TOKEN_PATH", str(Path(__file__).parent.parent / "token.json")))
 CREDS_PATH = Path(os.getenv("GMAIL_CREDENTIALS_PATH", str(Path(__file__).parent.parent / "credentials.json")))
 
 
