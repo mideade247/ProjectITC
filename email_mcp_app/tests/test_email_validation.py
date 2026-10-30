@@ -1,5 +1,4 @@
 import pytest
-
 from email_validation import (
     validate_email_address,
     validate_email_request,
@@ -64,3 +63,8 @@ def test_subject_header_injection():
             "Hello\nBcc: other@example.com",
             "Test message",
         )
+
+
+def test_non_string_email_address_raises_type_error():
+    with pytest.raises(TypeError):
+        validate_email_address(None)

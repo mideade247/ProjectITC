@@ -3,7 +3,7 @@ from email.utils import parseaddr
 
 def validate_email_address(address):
     if not isinstance(address, str):
-        raise ValueError("Email address must be a string")
+        raise TypeError("Email address must be a string")
 
     address = address.strip()
 

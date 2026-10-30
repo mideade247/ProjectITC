@@ -1,7 +1,10 @@
 import json
 from unittest.mock import MagicMock
+
 import pytest
 from servers import gmail_server
+
+
 def test_invalid_email_does_not_call_gmail(monkeypatch):
     mock_service = MagicMock()
 
