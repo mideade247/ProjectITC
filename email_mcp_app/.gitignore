@@ -1,5 +1,6 @@
 # Secrets — never commit these
 .env
+deploy.env
 credentials.json
 token.json
 k8s/secret.yaml
