@@ -1,314 +1,165 @@
-# Email Workflow Management & Validation
+# ProjectITC — Email MCP App
 
-## Overview
+A personal email assistant that lets me send, read and search Gmail through
+natural language. It is built on the **Model Context Protocol (MCP)**: two small
+MCP servers expose Gmail and a PostgreSQL email log as tools, and a client
+(CLI or FastAPI web app) uses the Anthropic API to decide which tools to call.
 
-Email Workflow Management & Validation is a Python software project focused on improving the reliability, maintainability, and testing of email-processing workflows.
+It is becoming a **local-first, self-hosted** tool: each user runs their own
+instance with their own Gmail account, their mail is stored in a database on
+their own machine, and the local web UI keeps working offline. No data is sent
+to a server run by this project. Ongoing work is conventional backend
+engineering — storage, sync, offline support, validation, testing and
+packaging — not building or training AI models.
 
-The existing ProjectITC repository contains an email application with application code, dependency configuration, Docker support, and deployment-related files.
+## What it does
 
-The next development phase aims to extend the application's conventional backend functionality through improved validation, workflow management, retry handling, logging, and automated testing.
+- **Send, list and read email** through the Gmail API (OAuth2).
+- **Log every email event** (sent/received metadata) to PostgreSQL and query
+  the log: history, keyword search and stats.
+- **Two front ends:**
+  - `app.py` — interactive command-line client.
+  - `web_app.py` — FastAPI web app with JWT login, per-user Gmail OAuth,
+    password reset and a browser chat UI.
+- **Input validation** before anything is sent (`email_validation.py`).
+- **Containerised** with Docker and deployable to AWS EKS + RDS
+  (`deploy.sh`, `k8s/`).
 
-## Business Problem
-
-Email-based applications can experience reliability problems when processing requests.
-
-Common challenges include:
-
-- Invalid email addresses
-- Missing required fields
-- Duplicate requests
-- Temporary processing failures
-- Inconsistent error handling
-- Limited processing history
-- Poor workflow visibility
-- Insufficient automated testing
-
-These problems can lead to failed operations, duplicated processing, and increased maintenance effort.
-
-This project aims to provide a more reliable and transparent email workflow management system.
-
-## Current Project Status
-
-The existing application is located in:
-
-```text
-ProjectITC/email_mcp_app/
-```
-
-The directory includes:
-
-- Python application code
-- Dependency configuration
-- Dockerfile
-- Deployment scripts
-- Kubernetes configuration
-- Application documentation
-
-The additional validation, persistence, retry, and workflow-tracking functionality described below is planned development work.
-
-## Planned Features
-
-### 1. Email Input Validation
-
-- Validate email address formats.
-- Check required message fields.
-- Validate subject and message content.
-- Reject malformed requests.
-- Return consistent validation errors.
-
-### 2. Workflow Management
-
-- Track email-processing requests.
-- Record workflow status.
-- Detect duplicate submissions.
-- Support dry-run execution.
-- Maintain processing history.
-
-### 3. Reliability Improvements
-
-- Implement configurable retry policies.
-- Handle temporary processing failures.
-- Record failure reasons.
-- Introduce structured logging.
-- Improve error handling.
-
-### 4. Database Integration
-
-- Store workflow metadata in SQLite.
-- Track request timestamps.
-- Record processing outcomes.
-- Retrieve workflow history.
-
-### 5. Automated Testing
-
-- Unit tests for validation.
-- Integration tests for workflow processing.
-- Retry mechanism tests.
-- Mock email provider tests.
-- Automated CI checks.
-
-## Technology Stack
+## Built with
 
 | Technology | Purpose |
 |------------|---------|
-| Python 3.11+ | Core application development |
-| Pydantic | Request validation |
-| SQLite | Workflow data storage |
-| SQLAlchemy | Database operations |
-| Pytest | Automated testing |
-| Docker | Application containerisation |
-| GitHub Actions | Continuous integration |
-| Git | Version control |
+| Python 3.11+ | Application code |
+| MCP Python SDK (`mcp`) | Gmail and PostgreSQL tool servers |
+| Anthropic Python SDK | Client that orchestrates the MCP tools |
+| FastAPI + Uvicorn | Web app and HTTP API |
+| PostgreSQL + psycopg2 | Email event log and user accounts |
+| Google API client | Gmail OAuth2 and API access |
+| bcrypt, PyJWT | Password hashing and JWT auth |
+| Docker, Kubernetes (EKS), RDS | Deployment |
+| Pytest, Ruff, GitHub Actions | Tests, linting and CI |
 
-FastAPI may be introduced if an HTTP interface is appropriate for the existing application.
-
-## Proposed Project Structure
+## Repository layout
 
 ```text
-email_mcp_app/
-├── app.py
-├── src/
-│   └── email_workflow/
-│       ├── __init__.py
-│       ├── validation.py
-│       ├── templates.py
-│       ├── workflow.py
-│       ├── persistence.py
-│       ├── retry.py
-│       └── logging_config.py
-├── tests/
-│   ├── test_validation.py
-│   ├── test_workflow.py
-│   ├── test_persistence.py
-│   └── test_retry.py
-├── examples/
-├── k8s/
-├── Dockerfile
-├── requirements.txt
-├── README.md
-└── ROADMAP.md
+ProjectITC/
+├── .github/workflows/python-ci.yml   # Lint + tests on every push / PR
+├── email_mcp_app/
+│   ├── app.py                        # CLI client
+│   ├── web_app.py                    # FastAPI web app
+│   ├── email_validation.py           # Address and request validation
+│   ├── servers/
+│   │   ├── gmail_server.py           # MCP server: send / list / read Gmail
+│   │   └── postgres_server.py        # MCP server: log / search / stats
+│   ├── schema.sql, setup_db.py       # Database schema and initialisation
+│   ├── tests/                        # Pytest suite (mocked Gmail, synthetic data)
+│   ├── k8s/                          # Kubernetes manifests
+│   ├── deploy.sh                     # AWS EKS + RDS deployment script
+│   ├── Dockerfile
+│   ├── .env.example, deploy.env.example
+│   └── README.md                     # Detailed setup and deployment guide
+├── requirements-dev.txt              # pytest, ruff
+├── ROADMAP.md                        # Planned work
+└── LICENSE                           # MIT
 ```
 
-## Getting Started
+## Getting started
 
 ### Prerequisites
 
 - Python 3.11 or later
-- Git
-- pip
+- A PostgreSQL database (local or hosted)
+- A Google Cloud OAuth client (`credentials.json`) with the Gmail API enabled
+- An Anthropic API key
 - Docker (optional)
 
-### Clone the Repository
+### Install
 
 ```bash
 git clone https://github.com/mideade247/ProjectITC.git
 cd ProjectITC/email_mcp_app
-```
-
-### Create a Virtual Environment
-
-```bash
 python -m venv .venv
 ```
 
-Activate the environment.
-
-**Windows:**
+Activate the environment:
 
 ```bash
+# Windows
 .venv\Scripts\activate
-```
-
-**Linux/macOS:**
-
-```bash
+# Linux/macOS
 source .venv/bin/activate
 ```
-
-### Install Dependencies
 
 ```bash
 pip install -r requirements.txt
 ```
 
-## Configuration
-
-The existing application includes an example environment configuration.
-
-Create a local configuration file from the example:
-
-**Linux/macOS:**
+### Configure
 
 ```bash
-cp .env.example .env
+cp .env.example .env          # PowerShell: Copy-Item .env.example .env
 ```
 
-**Windows PowerShell:**
+Fill in `ANTHROPIC_API_KEY`, `DATABASE_URL` and `GMAIL_CREDENTIALS_PATH`, and
+place `credentials.json` in `email_mcp_app/`. `.env`, `credentials.json`,
+`token.json` and `deploy.env` are gitignored — never commit real values.
 
-```powershell
-Copy-Item .env.example .env
-```
-
-Review the example configuration and supply only the settings required by the application.
-
-Never commit real credentials or authentication tokens.
-
-## Planned Workflow
-
-The proposed workflow will follow these steps:
-
-1. Receive an email-processing request.
-2. Validate the request.
-3. Check for duplicate processing.
-4. Create a workflow record.
-5. Execute the workflow or perform a dry run.
-6. Record the processing result.
-7. Retry eligible temporary failures.
-8. Return the final workflow status.
-
-## Development Roadmap
-
-| Phase | Development Task | Estimated Hours |
-|-------|------------------|-----------------|
-| 1 | Review existing application and isolate non-AI functionality | 5 |
-| 2 | Implement email-input validation | 5 |
-| 3 | Develop workflow status tracking | 6 |
-| 4 | Add SQLite persistence and duplicate detection | 6 |
-| 5 | Implement retry handling, dry runs, and logging | 6 |
-| 6 | Build automated tests | 6 |
-| 7 | Improve documentation and CI | 3 |
-| **Total** | | **37 hours** |
-
-## Testing
-
-Once the proposed test suite is implemented:
+### Run
 
 ```bash
-pytest
+python setup_db.py            # create tables
+python app.py                 # CLI client
+# or
+python web_app.py             # web app on http://localhost:8080
 ```
 
-Testing will cover:
+Docker and AWS EKS deployment are documented in
+[email_mcp_app/README.md](email_mcp_app/README.md). The deploy script reads the
+database password from `deploy.env` (copy `deploy.env.example`) or the
+`DB_PASSWORD` environment variable.
 
-- Valid email requests
-- Invalid email addresses
-- Missing required fields
-- Duplicate processing
-- Temporary failures
-- Retry behaviour
-- Workflow persistence
-- Error handling
+## Testing and code quality
 
-## Security and Privacy
+From the repository root:
 
-- Use synthetic email addresses for testing.
-- Do not commit credentials or API tokens.
-- Do not commit real email content.
-- Use mock email providers during automated testing.
-- Keep sensitive configuration in environment variables.
-- Ensure real email delivery requires explicit configuration and authorisation.
+```bash
+python -m pip install -r email_mcp_app/requirements.txt -r requirements-dev.txt
+python -m pytest email_mcp_app/tests -v
+python scripts/check_quality.py
+```
 
-## Development Scope
+Tests use synthetic `example.com` addresses and a mocked Gmail service; no real
+email is sent. GitHub Actions runs the same lint and test commands on every
+push and pull request. The quality command runs whole-package Ruff checks,
+Pytest, Bandit SAST, secret detection, a dependency vulnerability audit and
+dependency consistency checks. Any failed check blocks the command; later
+checks still run so all failures can be reviewed. Dependency auditing requires
+internet access. Secret detection covers tracked and new non-ignored working
+tree files, not Git history, and prints locations without secret values.
 
-The planned work focuses on conventional software engineering:
+Enable the same checks before each local push (once per clone):
 
-- Input validation
-- Backend application development
-- Workflow management
-- Database operations
-- Reliability engineering
-- Automated testing
-- Deployment improvements
+```bash
+git config core.hooksPath .githooks
+```
 
-AI model training, fine-tuning, evaluation, benchmarking, and inference are outside the proposed development scope.
+Use the virtual environment for dependency installation. Local hooks can be
+bypassed; configure the CI job as a required branch protection check on GitHub
+to enforce the gate for merges.
 
-## Future Improvements
+## Security and privacy
 
-- Workflow monitoring dashboard
-- Advanced retry policies
-- Scheduled workflow execution
-- Improved processing history
-- Additional validation rules
-- Expanded automated testing
+- No credentials are stored in the repository; configuration comes from
+  environment variables and gitignored files.
+- Tests and examples use made-up data only.
+- The Docker image copies application files explicitly and contains no secrets.
+
+## Roadmap
+
+Planned work — local SQLite storage, Gmail sync, offline mode with an outbox
+queue, privacy controls, packaging and tests, roughly 50 hours — is tracked in
+[ROADMAP.md](ROADMAP.md).
 
 ## License
-MIT
 
-## Testing and Code Quality
-
-The project uses Pytest for automated testing and Ruff
-for Python linting.
-
-### Running Tests
-
-Install the development dependencies:
-
-```bash
-python -m pip install -r requirements-dev.txt
-```
-
-Run the automated tests:
-
-```bash
-python -m pytest -v
-```
-
-### Linting
-
-Run the Python lint checks:
-
-```bash
-ruff check src tests
-```
-
-### Continuous Integration
-
-GitHub Actions runs automated tests and lint checks
-when changes are pushed or pull requests are opened.
-
-### Development Tasks
-
-Future development is organised into bounded tasks
-with defined objectives, scope and acceptance criteria.
-
-Tests use synthetic data and local or mocked dependencies
-where applicable.
+[MIT](LICENSE)

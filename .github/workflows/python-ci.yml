@@ -4,6 +4,9 @@ on:
   push:
   pull_request:
 
+permissions:
+  contents: read
+
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -23,10 +26,5 @@ jobs:
           python -m pip install -r email_mcp_app/requirements.txt
           python -m pip install -r requirements-dev.txt
 
-      - name: Run lint checks
-        run: |
-          ruff check email_mcp_app/email_validation.py email_mcp_app/tests
-
-      - name: Run application tests
-        run: |
-          python -m pytest email_mcp_app/tests -v
+      - name: Run tests, code quality, SAST, secret and dependency scans
+        run: python scripts/check_quality.py

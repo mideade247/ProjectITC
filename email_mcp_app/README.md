@@ -65,7 +65,7 @@ Edit `.env` with your real values:
 ```env
 ANTHROPIC_API_KEY=sk-ant-...
 GMAIL_CREDENTIALS_PATH=credentials.json
-DATABASE_URL=postgresql://user:password@host:5432/dbname
+DATABASE_URL=postgresql://localhost:5432/emaildb
 ```
 
 ### 3. Add Gmail credentials

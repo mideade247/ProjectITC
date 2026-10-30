@@ -118,7 +118,7 @@ spec:
             claimName: gmail-token-pvc
         - name: credentials-secret
           secret:
-            secretName: gmail-credentials-secret
+            secretName: gmail-credentials-secret  # pragma: allowlist secret -- Kubernetes resource name
         - name: token-secret
           secret:
-            secretName: gmail-token-secret
+            secretName: gmail-token-secret  # pragma: allowlist secret -- Kubernetes resource name

@@ -6,26 +6,32 @@ import asyncio
 import base64
 import hashlib
 import json
+import logging
 import os
 import secrets
 import sys
+import tempfile
 import uuid
 from contextlib import AsyncExitStack, asynccontextmanager
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from email.mime.text import MIMEText
 from pathlib import Path
 
 import bcrypt
+import jwt
 import psycopg2
 import psycopg2.extras
 from anthropic import Anthropic
 from dotenv import load_dotenv
-from fastapi import Depends, FastAPI, HTTPException, Header, Request
+from fastapi import Depends, FastAPI, Header, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
-from jose import JWTError, jwt
+from jwt import InvalidTokenError
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
 from pydantic import BaseModel
+
+logger = logging.getLogger(__name__)
+_token_directory = tempfile.TemporaryDirectory(prefix="email-mcp-")
 
 load_dotenv(Path(__file__).parent / ".env")
 # Allow OAuth over HTTP (EKS is behind ALB over HTTP)
@@ -35,7 +41,6 @@ ROOT = Path(__file__).parent
 GMAIL_SERVER = ROOT / "servers" / "gmail_server.py"
 POSTGRES_SERVER = ROOT / "servers" / "postgres_server.py"
 
-# ── Auth config ────────────────────────────────────────────────────────────────
 SECRET_KEY = os.getenv("SECRET_KEY", secrets.token_hex(32))
 ALGORITHM = "HS256"
 TOKEN_EXPIRE_HOURS = 24
@@ -66,7 +71,6 @@ def _verify_pw(password: str, hashed: str) -> bool:
     return bcrypt.checkpw(password.encode(), hashed.encode())
 
 
-# ── DB helpers ─────────────────────────────────────────────────────────────────
 
 def _db():
     return psycopg2.connect(os.environ["DATABASE_URL"])
@@ -171,21 +175,20 @@ def db_update_password(email: str, new_password: str):
     conn.close()
 
 
-# ── JWT helpers ────────────────────────────────────────────────────────────────
 
 def create_token(email: str) -> str:
-    expires = datetime.utcnow() + timedelta(hours=TOKEN_EXPIRE_HOURS)
+    expires = datetime.now(UTC) + timedelta(hours=TOKEN_EXPIRE_HOURS)
     return jwt.encode({"sub": email, "exp": expires}, SECRET_KEY, algorithm=ALGORITHM)
 
 
 def decode_token(token: str) -> str:
     try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM], options={"require": ["sub", "exp"]})
         email = payload.get("sub")
         if not email:
             raise HTTPException(status_code=401, detail="Invalid token")
         return email
-    except JWTError:
+    except InvalidTokenError:
         raise HTTPException(status_code=401, detail="Invalid or expired token")
 
 
@@ -195,11 +198,10 @@ def get_current_user(authorization: str = Header(...)) -> str:
     return decode_token(authorization[7:])
 
 
-# ── Gmail token file helpers ───────────────────────────────────────────────────
 
 def _token_path_for(email: str) -> Path:
-    h = hashlib.md5(email.encode()).hexdigest()
-    return Path(f"/tmp/gmail_{h}.json")
+    h = hashlib.sha256(email.encode()).hexdigest()
+    return Path(_token_directory.name) / f"gmail_{h}.json"
 
 
 def ensure_token_file(email: str):
@@ -208,11 +210,12 @@ def ensure_token_file(email: str):
     if not user or not user.get("gmail_token"):
         return None
     p = _token_path_for(email)
-    p.write_text(user["gmail_token"])
+    fd = os.open(p, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    with os.fdopen(fd, "w", encoding="utf-8") as token_file:
+        token_file.write(user["gmail_token"])
     return p
 
 
-# ── Email sending helper (for password reset) ──────────────────────────────────
 
 def _send_reset_email(to_email: str, reset_link: str):
     """Send a password-reset email using the app's own Gmail credentials."""
@@ -242,11 +245,10 @@ def _send_reset_email(to_email: str, reset_link: str):
         msg["subject"] = "Password Reset — Email MCP Assistant"
         raw = base64.urlsafe_b64encode(msg.as_bytes()).decode()
         service.users().messages().send(userId="me", body={"raw": raw}).execute()
-    except Exception as exc:
-        print(f"[reset-email] Failed to send email: {exc}")
+    except Exception as exc:  # noqa: BLE001 -- Keep reset responses uniform on provider failures.
+        logger.error("Password reset email failed (%s)", type(exc).__name__)
 
 
-# ── MCP app (per-user instances) ───────────────────────────────────────────────
 
 SYSTEM_PROMPT_TEMPLATE = """You are an intelligent email assistant for {user_email}.
 
@@ -383,14 +385,14 @@ async def lifespan(app: FastAPI):
     for instance in list(user_mcp_apps.values()):
         try:
             await instance.shutdown()
-        except Exception:
-            pass
+        except Exception as exc:  # noqa: BLE001 -- Continue closing the remaining SDK sessions.
+            logger.error("MCP shutdown failed (%s)", type(exc).__name__)
+    _token_directory.cleanup()
 
 
 app = FastAPI(title="Email MCP Assistant", lifespan=lifespan)
 
 
-# ── Pydantic models ────────────────────────────────────────────────────────────
 
 class AuthRequest(BaseModel):
     email: str
@@ -411,7 +413,6 @@ class ResetPasswordRequest(BaseModel):
     password: str
 
 
-# ── Auth routes ────────────────────────────────────────────────────────────────
 
 @app.post("/auth/register")
 def register(req: AuthRequest):
@@ -433,7 +434,6 @@ def login(req: AuthRequest):
     return {"token": token, "email": email, "gmail_connected": bool(user.get("gmail_token"))}
 
 
-# ── Gmail OAuth routes ─────────────────────────────────────────────────────────
 
 @app.get("/auth/google/url")
 def get_google_auth_url(user_email: str = Depends(get_current_user)):
@@ -451,16 +451,17 @@ def get_google_auth_url(user_email: str = Depends(get_current_user)):
             access_type="offline", prompt="consent", state=state_token
         )
         return {"auth_url": auth_url}
-    except Exception as exc:
-        raise HTTPException(status_code=500, detail=f"OAuth setup error: {exc}")
+    except Exception as exc:  # noqa: BLE001 -- Do not expose provider errors or credentials to clients.
+        logger.error("OAuth setup failed (%s)", type(exc).__name__)
+        raise HTTPException(status_code=500, detail="OAuth setup failed") from exc
 
 
 @app.get("/auth/google/callback")
 async def google_callback(
     request: Request,
-    code: str = None,
-    state: str = None,
-    error: str = None,
+    code: str | None = None,
+    state: str | None = None,
+    error: str | None = None,
 ):
     """Handle Google's redirect after the user authorises (or denies) access."""
     if error:
@@ -482,16 +483,15 @@ async def google_callback(
         if user_email in user_mcp_apps:
             try:
                 await user_mcp_apps[user_email].shutdown()
-            except Exception:
-                pass
+            except Exception as exc:  # noqa: BLE001 -- Reconnect even if the old SDK session fails to close.
+                logger.error("MCP reconnect cleanup failed (%s)", type(exc).__name__)
             del user_mcp_apps[user_email]
         return RedirectResponse("/?gmail_connected=1")
-    except Exception as exc:
-        print(f"[OAuth callback error] {exc}")
+    except Exception as exc:  # noqa: BLE001 -- Convert provider failures into a safe redirect.
+        logger.error("OAuth callback failed (%s)", type(exc).__name__)
         return RedirectResponse("/?error=oauth_failed")
 
 
-# ── Reset-password routes ──────────────────────────────────────────────────────
 
 @app.post("/auth/forgot-password")
 def forgot_password(req: ForgotPasswordRequest):
@@ -499,11 +499,10 @@ def forgot_password(req: ForgotPasswordRequest):
     user = db_get_user(email)
     if user:
         token = secrets.token_urlsafe(32)
-        expiry = datetime.utcnow() + timedelta(hours=1)
+        expiry = datetime.now(UTC) + timedelta(hours=1)
         db_set_reset_token(email, token, expiry)
         reset_link = f"{APP_BASE_URL}/reset-password/{token}"
         _send_reset_email(email, reset_link)
-        print(f"[reset] Link for {email}: {reset_link}")  # fallback log
     # Always return success to prevent email enumeration
     return {"message": "If that email is registered, a reset link has been sent."}
 
@@ -622,7 +621,6 @@ def _reset_invalid_html() -> str:
 </html>"""
 
 
-# ── App routes ─────────────────────────────────────────────────────────────────
 
 @app.get("/health")
 def health():
@@ -648,7 +646,6 @@ def clear_session(session_id: str, user_email: str = Depends(get_current_user)):
     return {"cleared": session_id}
 
 
-# ── Frontend ───────────────────────────────────────────────────────────────────
 
 @app.get("/", response_class=HTMLResponse)
 def index():
@@ -823,7 +820,6 @@ def index():
   var token = ''; var userEmail = ''; var sessionId = ''; var isRegister = false;
   try { token = localStorage.getItem('mcp_token') || ''; userEmail = localStorage.getItem('mcp_email') || ''; } catch(e) {}
 
-  // ── URL params (after OAuth redirect) ───────────────────────────────────────
   var urlParams = new URLSearchParams(window.location.search);
   var gmailConnected = urlParams.get('gmail_connected') === '1';
   var oauthError = urlParams.get('error');
@@ -831,7 +827,6 @@ def index():
     window.history.replaceState({}, '', '/');
   }
 
-  // ── Helpers ─────────────────────────────────────────────────────────────────
   function showErr(id, msg) {
     var el = document.getElementById(id);
     el.textContent = msg;
@@ -899,7 +894,6 @@ def index():
     }
   }
 
-  // ── Sign in / Register ───────────────────────────────────────────────────────
   function submitAuth() {
     var email = document.getElementById('authEmail').value.trim();
     var password = document.getElementById('authPassword').value;
@@ -927,7 +921,6 @@ def index():
     });
   }
 
-  // ── Connect Gmail ────────────────────────────────────────────────────────────
   document.getElementById('connectGmailBtn').addEventListener('click', function() {
     var btn = document.getElementById('connectGmailBtn');
     btn.disabled = true;
@@ -946,7 +939,6 @@ def index():
     showChat();
   });
 
-  // ── Forgot password ──────────────────────────────────────────────────────────
   document.getElementById('forgotBtn').addEventListener('click', function() {
     document.getElementById('forgotEmail').value = document.getElementById('authEmail').value;
     showErr('forgotErr', '');
@@ -977,7 +969,6 @@ def index():
     .finally(function() { btn.disabled = false; btn.textContent = 'Send Reset Link'; });
   });
 
-  // ── Chat ─────────────────────────────────────────────────────────────────────
   function fill(text) {
     document.getElementById('msgInput').value = text;
     document.getElementById('msgInput').focus();
@@ -1026,7 +1017,6 @@ def index():
     .finally(function() { btn.disabled = false; input.focus(); });
   }
 
-  // ── Wire up events ───────────────────────────────────────────────────────────
   document.getElementById('tabSignIn').addEventListener('click', function() { setTab(false); });
   document.getElementById('tabRegister').addEventListener('click', function() { setTab(true); });
   document.getElementById('authBtn').addEventListener('click', submitAuth);
@@ -1036,7 +1026,6 @@ def index():
   document.getElementById('msgInput').addEventListener('keydown', function(e) { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); } });
   document.querySelectorAll('.chip').forEach(function(c) { c.addEventListener('click', function() { fill(c.dataset.msg); }); });
 
-  // ── Initial state ────────────────────────────────────────────────────────────
   if (token && userEmail) {
     if (gmailConnected) {
       showChat();
@@ -1060,4 +1049,4 @@ def index():
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8080)
+    uvicorn.run(app, host=os.getenv("HOST", "127.0.0.1"), port=8080)

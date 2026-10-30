@@ -1,0 +1,19 @@
+# Secrets — never commit these
+.env
+deploy.env
+credentials.json
+token.json
+k8s/secret.yaml
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+
+# Editors / notebooks
+.ipynb_checkpoints/
+.vscode/
+.idea/

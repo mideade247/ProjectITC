@@ -13,6 +13,14 @@ DB_IDENTIFIER="email-mcp-db"
 DB_SUBNET_GROUP="email-mcp-db-subnet-group"
 DB_SG_NAME="email-mcp-rds-sg"
 
+# DB_PASSWORD is never committed. Put it in deploy.env (gitignored, see
+# deploy.env.example) or export it before running this script.
+if [[ -f "$(dirname "$0")/deploy.env" ]]; then
+  # shellcheck disable=SC1091
+  source "$(dirname "$0")/deploy.env"
+fi
+: "${DB_PASSWORD:?DB_PASSWORD is not set - copy deploy.env.example to deploy.env and fill it in}"
+
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo " Email MCP App — EKS + RDS Deployment"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
@@ -110,7 +118,7 @@ if ! aws rds describe-db-instances \
     --engine postgres \
     --engine-version 15.4 \
     --master-username postgres \
-    --master-user-password REMOVED_EXPOSED_SECRET \
+    --master-user-password "$DB_PASSWORD" \
     --db-name postgres \
     --vpc-security-group-ids "$RDS_SG" \
     --db-subnet-group-name "$DB_SUBNET_GROUP" \
@@ -135,7 +143,7 @@ echo "  RDS endpoint: $RDS_ENDPOINT"
 
 # ── Step 6: Update secret.yaml with real RDS endpoint ────────────────────────
 echo "[6/8] Updating k8s/secret.yaml with RDS endpoint..."
-sed -i "s|DATABASE_URL:.*|DATABASE_URL: \"postgresql://postgres:REMOVED_EXPOSED_SECRET@${RDS_ENDPOINT}:5432/postgres\"|" k8s/secret.yaml
+sed -i "s|DATABASE_URL:.*|DATABASE_URL: \"postgresql://postgres:${DB_PASSWORD}@${RDS_ENDPOINT}:5432/postgres\"|" k8s/secret.yaml
 
 # ── Step 7: Update kubeconfig + Deploy manifests ──────────────────────────────
 echo "[7/8] Deploying to EKS..."
@@ -159,7 +167,7 @@ echo "  Initialising database schema..."
 kubectl run db-init \
   --image="${ECR_URI}:${IMAGE_TAG}" \
   --namespace=email-mcp --restart=Never \
-  --env="DATABASE_URL=postgresql://postgres:REMOVED_EXPOSED_SECRET@${RDS_ENDPOINT}:5432/postgres" \
+  --env="DATABASE_URL=postgresql://postgres:${DB_PASSWORD}@${RDS_ENDPOINT}:5432/postgres" \
   --command -- python setup_db.py
 kubectl wait --for=condition=Completed pod/db-init -n email-mcp --timeout=120s
 kubectl logs db-init -n email-mcp
