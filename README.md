@@ -5,9 +5,12 @@ natural language. It is built on the **Model Context Protocol (MCP)**: two small
 MCP servers expose Gmail and a PostgreSQL email log as tools, and a client
 (CLI or FastAPI web app) uses the Anthropic API to decide which tools to call.
 
-I built it for my own mailbox and run it on AWS EKS. Ongoing work focuses on
-conventional backend engineering — validation, reliability, persistence,
-testing and documentation — not on building or training AI models.
+It is becoming a **local-first, self-hosted** tool: each user runs their own
+instance with their own Gmail account, their mail is stored in a database on
+their own machine, and the local web UI keeps working offline. No data is sent
+to a server run by this project. Ongoing work is conventional backend
+engineering — storage, sync, offline support, validation, testing and
+packaging — not building or training AI models.
 
 ## What it does
 
@@ -138,8 +141,8 @@ push and pull request.
 
 ## Roadmap
 
-Planned work — validation, workflow tracking, retries, persistence
-improvements, tests and docs, roughly 37 hours — is tracked in
+Planned work — local SQLite storage, Gmail sync, offline mode with an outbox
+queue, privacy controls, packaging and tests, roughly 50 hours — is tracked in
 [ROADMAP.md](ROADMAP.md).
 
 ## License
