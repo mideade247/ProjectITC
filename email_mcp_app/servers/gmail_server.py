@@ -6,12 +6,18 @@ Exposes Gmail send/read operations as MCP tools.
 import json
 import base64
 import os
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from pathlib import Path
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from dotenv import load_dotenv
 from mcp.server.fastmcp import FastMCP
-
+from email_validation import (
+    validate_email_address,
+    validate_email_request,
+)   
 load_dotenv(Path(__file__).parent.parent / ".env")
 
 mcp = FastMCP("gmail-server")
@@ -58,6 +64,14 @@ def send_email(to: str, subject: str, body: str, cc: str = "") -> str:
     Send an email via the authenticated Gmail account.
     Returns JSON with message_id, to, subject on success.
     """
+    validated = validate_email_request(to, subject, body)
+
+    to = validated["to"]
+    subject = validated["subject"]
+    body = validated["body"]
+
+    if cc:
+        cc = validate_email_address(cc)
     service = _get_service()
 
     msg = MIMEMultipart()
