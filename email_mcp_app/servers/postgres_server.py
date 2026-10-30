@@ -5,8 +5,9 @@ Exposes email logging/querying operations as MCP tools.
 
 import json
 import os
-from pathlib import Path
 from datetime import datetime
+from pathlib import Path
+
 from dotenv import load_dotenv
 from mcp.server.fastmcp import FastMCP
 
@@ -100,24 +101,13 @@ def get_email_logs(
     conn = _connect()
     cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
     try:
-        conditions = ["1=1"]
-        params: list = []
-
-        if direction:
-            conditions.append("direction = %s")
-            params.append(direction)
-
-        if search:
-            conditions.append(
-                "(subject ILIKE %s OR from_address ILIKE %s OR to_address ILIKE %s)"
-            )
-            params += [f"%{search}%", f"%{search}%", f"%{search}%"]
-
-        params.append(limit)
+        pattern = f"%{search}%"
         cur.execute(
-            f"SELECT * FROM email_logs WHERE {' AND '.join(conditions)} "
-            f"ORDER BY logged_at DESC LIMIT %s",
-            params,
+            """SELECT * FROM email_logs
+            WHERE (%s = '' OR direction = %s)
+              AND (%s = '' OR subject ILIKE %s OR from_address ILIKE %s OR to_address ILIKE %s)
+            ORDER BY logged_at DESC LIMIT %s""",
+            (direction, direction, search, pattern, pattern, pattern, limit),
         )
         return json.dumps(_rows_to_list(cur), indent=2)
     finally:

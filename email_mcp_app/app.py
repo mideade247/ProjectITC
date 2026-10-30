@@ -17,7 +17,6 @@ from mcp.client.stdio import stdio_client
 
 load_dotenv(Path(__file__).parent / ".env")
 
-# ─── Paths ───────────────────────────────────────────────────────────────────
 ROOT = Path(__file__).parent
 GMAIL_SERVER = ROOT / "servers" / "gmail_server.py"
 POSTGRES_SERVER = ROOT / "servers" / "postgres_server.py"
@@ -46,7 +45,6 @@ CHECKING LOGS / STATS:
 Always be concise, friendly, and confirm every action you take."""
 
 
-# ─── App ─────────────────────────────────────────────────────────────────────
 
 class EmailMCPApp:
     def __init__(self):
@@ -55,7 +53,6 @@ class EmailMCPApp:
         self.tools: list[dict] = []           # Anthropic-formatted tool defs
         self._sessions: dict[str, ClientSession] = {}  # tool_name → session
 
-    # ── Server connection ──────────────────────────────────────────────────
     async def _connect(self, label: str, command: str, args: list[str], env: dict):
         """Start an MCP server subprocess and register its tools."""
         merged_env = {**os.environ, **env}
@@ -88,7 +85,6 @@ class EmailMCPApp:
             return result.content[0].text
         return ""
 
-    # ── Agentic loop ──────────────────────────────────────────────────────
     async def chat(self, user_message: str, history: list) -> tuple[str, list]:
         history.append({"role": "user", "content": user_message})
 
@@ -126,7 +122,6 @@ class EmailMCPApp:
 
             history.append({"role": "user", "content": tool_results})
 
-    # ── Main loop ─────────────────────────────────────────────────────────
     async def run(self):
         print("\n" + "═" * 56)
         print("  Email MCP Assistant — powered by Claude")
@@ -179,14 +174,13 @@ class EmailMCPApp:
             try:
                 reply, history = await self.chat(user_input, history)
                 print(f"\nAssistant: {reply}")
-            except Exception as exc:
+            except Exception as exc:  # noqa: BLE001 -- Keep the interactive client alive after SDK failures.
                 print(f"\n[error] {exc}")
 
         print("\nGoodbye!")
         await self.exit_stack.aclose()
 
 
-# ─── Entry point ─────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
     asyncio.run(EmailMCPApp().run())

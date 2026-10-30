@@ -13,7 +13,7 @@
       "command": "python",
       "args": ["C:\\Users\\olumi\\email_mcp_app\\servers\\postgres_server.py"],
       "env": {
-        "DATABASE_URL": "postgresql://user:password@host:5432/dbname"
+        "DATABASE_URL": "postgresql://localhost:5432/emaildb"
       }
     }
   }
