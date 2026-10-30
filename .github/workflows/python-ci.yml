@@ -1,4 +1,4 @@
-name: Python CI
+name: Email Application CI
 
 on:
   push:
@@ -20,12 +20,13 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
+          python -m pip install -r email_mcp_app/requirements.txt
           python -m pip install -r requirements-dev.txt
 
       - name: Run lint checks
         run: |
-          ruff check src tests
+          ruff check email_mcp_app/email_validation.py email_mcp_app/tests
 
       - name: Run application tests
         run: |
-          python -m pytest -v
+          python -m pytest email_mcp_app/tests -v
