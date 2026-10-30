@@ -5,6 +5,7 @@ Usage: python setup_db.py
 
 import os
 from pathlib import Path
+
 from dotenv import load_dotenv
 
 load_dotenv(Path(__file__).parent / ".env")
@@ -24,7 +25,7 @@ def main():
         print("ERROR: psycopg2 not installed. Run: pip install -r requirements.txt")
         return
 
-    print(f"Connecting to database…")
+    print("Connecting to database…")
     try:
         conn = psycopg2.connect(DATABASE_URL)
         cur = conn.cursor()
@@ -33,7 +34,7 @@ def main():
         cur.close()
         conn.close()
         print("✓ Schema applied — email_logs table is ready.")
-    except Exception as e:
+    except psycopg2.Error as e:
         print(f"ERROR: {e}")
 
 

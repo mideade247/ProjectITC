@@ -35,7 +35,7 @@ packaging — not building or training AI models.
 | FastAPI + Uvicorn | Web app and HTTP API |
 | PostgreSQL + psycopg2 | Email event log and user accounts |
 | Google API client | Gmail OAuth2 and API access |
-| bcrypt, python-jose | Password hashing and JWT auth |
+| bcrypt, PyJWT | Password hashing and JWT auth |
 | Docker, Kubernetes (EKS), RDS | Deployment |
 | Pytest, Ruff, GitHub Actions | Tests, linting and CI |
 
@@ -125,12 +125,27 @@ From the repository root:
 ```bash
 python -m pip install -r email_mcp_app/requirements.txt -r requirements-dev.txt
 python -m pytest email_mcp_app/tests -v
-ruff check email_mcp_app/email_validation.py email_mcp_app/tests
+python scripts/check_quality.py
 ```
 
 Tests use synthetic `example.com` addresses and a mocked Gmail service; no real
 email is sent. GitHub Actions runs the same lint and test commands on every
-push and pull request.
+push and pull request. The quality command runs whole-package Ruff checks,
+Pytest, Bandit SAST, secret detection, a dependency vulnerability audit and
+dependency consistency checks. Any failed check blocks the command; later
+checks still run so all failures can be reviewed. Dependency auditing requires
+internet access. Secret detection covers tracked and new non-ignored working
+tree files, not Git history, and prints locations without secret values.
+
+Enable the same checks before each local push (once per clone):
+
+```bash
+git config core.hooksPath .githooks
+```
+
+Use the virtual environment for dependency installation. Local hooks can be
+bypassed; configure the CI job as a required branch protection check on GitHub
+to enforce the gate for merges.
 
 ## Security and privacy
 

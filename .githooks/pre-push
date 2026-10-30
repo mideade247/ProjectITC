@@ -1,0 +1,9 @@
+#!/bin/sh
+set -eu
+if [ -x .venv/Scripts/python.exe ]; then
+    exec .venv/Scripts/python.exe scripts/check_quality.py
+elif [ -x .venv/bin/python ]; then
+    exec .venv/bin/python scripts/check_quality.py
+else
+    exec python scripts/check_quality.py
+fi
