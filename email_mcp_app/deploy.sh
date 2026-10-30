@@ -13,6 +13,14 @@ DB_IDENTIFIER="email-mcp-db"
 DB_SUBNET_GROUP="email-mcp-db-subnet-group"
 DB_SG_NAME="email-mcp-rds-sg"
 
+# DB_PASSWORD is never committed. Put it in deploy.env (gitignored, see
+# deploy.env.example) or export it before running this script.
+if [[ -f "$(dirname "$0")/deploy.env" ]]; then
+  # shellcheck disable=SC1091
+  source "$(dirname "$0")/deploy.env"
+fi
+: "${DB_PASSWORD:?DB_PASSWORD is not set - copy deploy.env.example to deploy.env and fill it in}"
+
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo " Email MCP App — EKS + RDS Deployment"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
